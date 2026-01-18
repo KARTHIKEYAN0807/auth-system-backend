@@ -19,8 +19,8 @@ require_once __DIR__ . '/config/mysql.php';
 /* ======================
    SESSION CHECK (REDIS)
 ====================== */
-$headers = getallheaders();
-$sessionId = $headers['Session-Id'] ?? '';
+$headers = array_change_key_case(getallheaders(), CASE_LOWER);
+$sessionId = $headers['session-id'] ?? '';
 
 if (!$sessionId) {
     echo json_encode(['status' => 'error', 'message' => 'No session']);
@@ -35,28 +35,32 @@ if (!$userId) {
 }
 
 /* ======================
+   FETCH EMAIL (MYSQL)
+====================== */
+$stmt = $conn->prepare("SELECT email FROM users WHERE id = ?");
+$stmt->bind_param("i", $userId);
+$stmt->execute();
+$res = $stmt->get_result();
+$user = $res->fetch_assoc();
+
+if (!$user) {
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    exit;
+}
+
+$email = $user['email'];
+
+/* ======================
    GET PROFILE
 ====================== */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $profile = getProfileByUserId($userId);
 
-    // Create profile if not exists
+    // If profile doesn't exist → create EMPTY profile (NO email)
     if (!$profile) {
-        $stmt = $conn->prepare("SELECT email FROM users WHERE id = ?");
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $user = $result->fetch_assoc();
-
-        if (!$user) {
-            echo json_encode(['status' => 'error', 'message' => 'User not found']);
-            exit;
-        }
-
         updateProfile($userId, [
             'name'  => '',
-            'email' => $user['email'],
             'phone' => '',
             'age'   => 0,
             'city'  => '',
@@ -70,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'status' => 'success',
         'profile' => [
             'name'  => $profile->name ?? '',
-            'email' => $profile->email ?? '',
+            'email' => $email, // ✅ ALWAYS FROM MYSQL
             'phone' => $profile->phone ?? '',
             'age'   => $profile->age ?? 0,
             'city'  => $profile->city ?? '',
