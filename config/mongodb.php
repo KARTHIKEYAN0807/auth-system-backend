@@ -1,17 +1,21 @@
 <?php
-// MongoDB connection using PHP extension (NO composer)
+// ===============================
+// MongoDB connection (NO composer)
+// ===============================
 
-// Get MongoDB URI from Railway environment
+// Get MongoDB URI from environment
 $mongoUri = getenv('MONGO_URI');
 
 if (!$mongoUri) {
+    http_response_code(500);
     die("MONGO_URI environment variable not set");
 }
 
 try {
-    // Create MongoDB Manager
+    // Create MongoDB Manager (NO SSL, NO SRV)
     $manager = new MongoDB\Driver\Manager($mongoUri);
 } catch (Exception $e) {
+    http_response_code(500);
     die("MongoDB connection failed: " . $e->getMessage());
 }
 
@@ -64,9 +68,11 @@ function updateProfile($userId, $data)
         $manager->executeBulkWrite(
             "$dbName.$collectionName",
             $bulk,
-            new MongoDB\Driver\WriteConcern(MongoDB\Driver\WriteConcern::MAJORITY)
+            new MongoDB\Driver\WriteConcern(
+                MongoDB\Driver\WriteConcern::MAJORITY
+            )
         );
     } catch (Exception $e) {
-        // silently fail or log
+        // optional: error_log($e->getMessage());
     }
 }
