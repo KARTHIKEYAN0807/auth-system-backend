@@ -20,7 +20,7 @@ $sessionId = $headers['session-id'] ?? '';
 
 if (!$sessionId) {
     echo json_encode([
-        'status' => 'error',
+        'status'  => 'error',
         'message' => 'Session ID missing'
     ]);
     exit;
@@ -31,7 +31,7 @@ $userId = $redis->get("session:$sessionId");
 
 if (!$userId) {
     echo json_encode([
-        'status' => 'error',
+        'status'  => 'error',
         'message' => 'Session expired or invalid'
     ]);
     exit;
@@ -39,6 +39,6 @@ if (!$userId) {
 
 // Session valid
 echo json_encode([
-    'status' => 'success',
+    'status'  => 'success',
     'user_id' => (int)$userId
 ]);

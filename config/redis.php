@@ -1,31 +1,24 @@
 <?php
-header('Content-Type: application/json');
 
-require_once __DIR__ . '/config/redis.php';
+$redisHost = getenv('REDISHOST');
+$redisPort = getenv('REDISPORT');
+$redisPass = getenv('REDISPASSWORD');
 
-$headers = getallheaders();
-$sessionId = $headers['Session-Id'] ?? '';
-
-if (!$sessionId) {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Session ID missing'
-    ]);
-    exit;
+if (!$redisHost || !$redisPort) {
+    http_response_code(500);
+    die("Redis env vars missing");
 }
 
-// Check session in Redis
-$userId = $redis->get("session:$sessionId");
+$redis = new Redis();
 
-if (!$userId) {
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Session expired or invalid'
-    ]);
-    exit;
+try {
+    if ($redisPass) {
+        $redis->connect($redisHost, (int)$redisPort);
+        $redis->auth($redisPass);
+    } else {
+        $redis->connect($redisHost, (int)$redisPort);
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    die("Redis connection failed");
 }
-
-echo json_encode([
-    'status' => 'success',
-    'user_id' => $userId
-]);
