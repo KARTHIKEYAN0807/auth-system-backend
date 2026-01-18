@@ -1,16 +1,20 @@
 <?php
-$host = getenv("MYSQL_HOST");
-$user = getenv("MYSQL_USER");
-$pass = getenv("MYSQL_PASSWORD");
-$db   = getenv("MYSQL_DATABASE");
-$port = getenv("MYSQL_PORT");
 
-$conn = new mysqli($host, $user, $pass, $db, $port);
+$host = getenv("DB_HOST");
+$user = getenv("DB_USER");
+$pass = getenv("DB_PASS");
+$db   = getenv("DB_NAME");
+$port = getenv("DB_PORT");
+
+if (!$host || !$user || !$db) {
+    die("MySQL env vars missing");
+}
+
+$conn = new mysqli($host, $user, $pass, $db, (int)$port);
 
 if ($conn->connect_error) {
     http_response_code(500);
     die("MySQL connection failed");
 }
 
-// IMPORTANT: set charset
 $conn->set_charset("utf8mb4");
