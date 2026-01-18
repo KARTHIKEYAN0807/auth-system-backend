@@ -4,15 +4,16 @@
 // NO composer | NO SSL | NO SRV
 // =======================================
 
-$mongoUri = getenv('MONGO_URI');
+// 🚨 Railway provides MONGO_URL (NOT MONGO_URI)
+$mongoUrl = getenv('MONGO_URL');
 
-if (!$mongoUri) {
+if (!$mongoUrl) {
     http_response_code(500);
-    die("MONGO_URI environment variable not set");
+    die("MONGO_URL environment variable not set");
 }
 
 try {
-    $manager = new MongoDB\Driver\Manager($mongoUri);
+    $manager = new MongoDB\Driver\Manager($mongoUrl);
 } catch (Throwable $e) {
     http_response_code(500);
     die("MongoDB connection failed: " . $e->getMessage());
@@ -57,6 +58,7 @@ function updateProfile($userId, $data)
 {
     global $manager, $dbName, $collectionName;
 
+    // Always enforce user_id
     $data['user_id'] = (int)$userId;
 
     try {
@@ -76,7 +78,7 @@ function updateProfile($userId, $data)
             )
         );
 
-        // HARD validation (no silent success)
+        // HARD validation (no fake success)
         if (
             $result->getUpsertedCount() === 0 &&
             $result->getModifiedCount() === 0 &&
