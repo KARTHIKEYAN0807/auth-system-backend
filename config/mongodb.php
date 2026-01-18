@@ -1,7 +1,6 @@
 <?php
 // =======================================
-// MongoDB connection (Railway compatible)
-// TLS REQUIRED for SCRAM-SHA-256
+// MongoDB Atlas connection (PHP)
 // =======================================
 
 $mongoUrl = getenv('MONGO_URL');
@@ -12,13 +11,8 @@ if (!$mongoUrl) {
 }
 
 try {
-    $manager = new MongoDB\Driver\Manager(
-        $mongoUrl,
-        [
-            'tls' => true,
-            'tlsAllowInvalidCertificates' => true
-        ]
-    );
+    // Atlas handles TLS internally
+    $manager = new MongoDB\Driver\Manager($mongoUrl);
 } catch (Throwable $e) {
     http_response_code(500);
     die("MongoDB connection failed: " . $e->getMessage());
