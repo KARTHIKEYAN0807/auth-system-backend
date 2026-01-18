@@ -1,9 +1,10 @@
 <?php
-// ===============================
-// MongoDB connection (NO composer)
-// ===============================
+// =======================================
+// MongoDB connection (Railway compatible)
+// NO composer | NO SSL | NO SRV
+// =======================================
 
-// Get MongoDB URI from environment
+// Read MongoDB URI from environment
 $mongoUri = getenv('MONGO_URI');
 
 if (!$mongoUri) {
@@ -12,9 +13,9 @@ if (!$mongoUri) {
 }
 
 try {
-    // Create MongoDB Manager (NO SSL, NO SRV)
+    // Create MongoDB Manager
     $manager = new MongoDB\Driver\Manager($mongoUri);
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     die("MongoDB connection failed: " . $e->getMessage());
 }
@@ -23,56 +24,58 @@ try {
 $dbName = "profile_db";
 $collectionName = "profiles";
 
-/**
- * Get profile by user ID
- */
+/* =========================
+   GET PROFILE BY USER ID
+========================= */
 function getProfileByUserId($userId)
 {
     global $manager, $dbName, $collectionName;
 
-    try {
-        $query = new MongoDB\Driver\Query(
-            ['user_id' => (int)$userId],
-            ['limit' => 1]
-        );
+    $query = new MongoDB\Driver\Query(
+        ['user_id' => (int)$userId],
+        ['limit' => 1]
+    );
 
-        $cursor = $manager->executeQuery("$dbName.$collectionName", $query);
+    $cursor = $manager->executeQuery(
+        "$dbName.$collectionName",
+        $query
+    );
 
-        foreach ($cursor as $doc) {
-            return $doc;
-        }
-    } catch (Exception $e) {
-        return null;
+    foreach ($cursor as $doc) {
+        return $doc;
     }
 
     return null;
 }
 
-/**
- * Create or update profile
- */
+/* =========================
+   CREATE / UPDATE PROFILE
+========================= */
 function updateProfile($userId, $data)
 {
     global $manager, $dbName, $collectionName;
 
+    // Always enforce user_id
     $data['user_id'] = (int)$userId;
 
-    try {
-        $bulk = new MongoDB\Driver\BulkWrite();
-        $bulk->update(
-            ['user_id' => (int)$userId],
-            ['$set' => $data],
-            ['upsert' => true]
-        );
+    $bulk = new MongoDB\Driver\BulkWrite();
 
-        $manager->executeBulkWrite(
-            "$dbName.$collectionName",
-            $bulk,
-            new MongoDB\Driver\WriteConcern(
-                MongoDB\Driver\WriteConcern::MAJORITY
-            )
-        );
-    } catch (Exception $e) {
-        // optional: error_log($e->getMessage());
+    $bulk->update(
+        ['user_id' => (int)$userId],
+        ['$set' => $data],
+        ['upsert' => true]
+    );
+
+    $result = $manager->executeBulkWrite(
+        "$dbName.$collectionName",
+        $bulk
+    );
+
+    // 🔴 CRITICAL: verify write actually happened
+    if (
+        $result->getUpsertedCount() === 0 &&
+        $result->getModifiedCount() === 0
+    ) {
+        throw new Exception("MongoDB write failed");
     }
 }
