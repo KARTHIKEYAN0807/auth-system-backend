@@ -1,10 +1,9 @@
 <?php
 // =======================================
 // MongoDB connection (Railway compatible)
-// NO composer | NO SSL | NO SRV
+// TLS REQUIRED for SCRAM-SHA-256
 // =======================================
 
-// 🚨 Railway provides MONGO_URL (NOT MONGO_URI)
 $mongoUrl = getenv('MONGO_URL');
 
 if (!$mongoUrl) {
@@ -13,7 +12,13 @@ if (!$mongoUrl) {
 }
 
 try {
-    $manager = new MongoDB\Driver\Manager($mongoUrl);
+    $manager = new MongoDB\Driver\Manager(
+        $mongoUrl,
+        [
+            'tls' => true,
+            'tlsAllowInvalidCertificates' => true
+        ]
+    );
 } catch (Throwable $e) {
     http_response_code(500);
     die("MongoDB connection failed: " . $e->getMessage());
@@ -58,43 +63,33 @@ function updateProfile($userId, $data)
 {
     global $manager, $dbName, $collectionName;
 
-    // Always enforce user_id
     $data['user_id'] = (int)$userId;
 
-    try {
-        $bulk = new MongoDB\Driver\BulkWrite();
+    $bulk = new MongoDB\Driver\BulkWrite();
+    $bulk->update(
+        ['user_id' => (int)$userId],
+        ['$set' => $data],
+        ['upsert' => true]
+    );
 
-        $bulk->update(
-            ['user_id' => (int)$userId],
-            ['$set' => $data],
-            ['upsert' => true]
-        );
+    $result = $manager->executeBulkWrite(
+        "$dbName.$collectionName",
+        $bulk,
+        [
+            'writeConcern' => new MongoDB\Driver\WriteConcern(
+                MongoDB\Driver\WriteConcern::MAJORITY,
+                1000
+            )
+        ]
+    );
 
-        // ✅ CORRECT way to pass WriteConcern
-        $writeConcern = new MongoDB\Driver\WriteConcern(
-            MongoDB\Driver\WriteConcern::MAJORITY,
-            1000
-        );
-
-        $result = $manager->executeBulkWrite(
-            "$dbName.$collectionName",
-            $bulk,
-            ['writeConcern' => $writeConcern]
-        );
-
-        // HARD validation (no fake success)
-        if (
-            $result->getUpsertedCount() === 0 &&
-            $result->getModifiedCount() === 0 &&
-            $result->getMatchedCount() === 0
-        ) {
-            throw new Exception("MongoDB write did not persist");
-        }
-
-        return true;
-
-    } catch (Throwable $e) {
-        error_log("MongoDB WRITE error: " . $e->getMessage());
-        throw $e;
+    if (
+        $result->getUpsertedCount() === 0 &&
+        $result->getModifiedCount() === 0 &&
+        $result->getMatchedCount() === 0
+    ) {
+        throw new Exception("MongoDB write did not persist");
     }
+
+    return true;
 }
