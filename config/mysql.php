@@ -1,12 +1,13 @@
 <?php
 
-$host = getenv("DB_HOST");
-$user = getenv("DB_USER");
-$pass = getenv("DB_PASS");
-$db   = getenv("DB_NAME");
-$port = getenv("DB_PORT");
+$host = getenv("MYSQL_HOST");
+$user = getenv("MYSQL_USER");
+$pass = getenv("MYSQL_PASSWORD");
+$db   = getenv("MYSQL_DATABASE");
+$port = getenv("MYSQL_PORT");
 
-if (!$host || !$user || !$db) {
+if (!$host || !$user || !$db || !$port) {
+    http_response_code(500);
     die("MySQL env vars missing");
 }
 
