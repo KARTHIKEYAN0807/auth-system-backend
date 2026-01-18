@@ -1,29 +1,54 @@
 <?php
-
 // MongoDB connection using PHP extension (NO composer)
 
-$manager = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+// Get MongoDB URI from Railway environment
+$mongoUri = getenv('MONGO_URI');
 
-// Database & collection names
-$dbName = "auth_system";
+if (!$mongoUri) {
+    die("MONGO_URI environment variable not set");
+}
+
+try {
+    // Create MongoDB Manager
+    $manager = new MongoDB\Driver\Manager($mongoUri);
+} catch (Exception $e) {
+    die("MongoDB connection failed: " . $e->getMessage());
+}
+
+// Database & collection
+$dbName = "profile_db";
 $collectionName = "profiles";
 
-// Helper function to get profile
-function getProfileByUserId($userId) {
+/**
+ * Get profile by user ID
+ */
+function getProfileByUserId($userId)
+{
     global $manager, $dbName, $collectionName;
 
-    $query = new MongoDB\Driver\Query(['user_id' => (int)$userId]);
+    $query = new MongoDB\Driver\Query(
+        ['user_id' => (int)$userId],
+        ['limit' => 1]
+    );
+
     $cursor = $manager->executeQuery("$dbName.$collectionName", $query);
 
     foreach ($cursor as $doc) {
         return $doc;
     }
+
     return null;
 }
 
-// Helper function to update profile
-function updateProfile($userId, $data) {
+/**
+ * Create or update profile
+ */
+function updateProfile($userId, $data)
+{
     global $manager, $dbName, $collectionName;
+
+    // Always enforce user_id
+    $data['user_id'] = (int)$userId;
 
     $bulk = new MongoDB\Driver\BulkWrite();
     $bulk->update(
