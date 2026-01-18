@@ -1,0 +1,5 @@
+<IfModule mpm_prefork_module>
+  StartServers 2
+  MinSpareServers 2
+  MaxSpareServers 5
+</IfModule>
