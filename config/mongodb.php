@@ -70,12 +70,16 @@ function updateProfile($userId, $data)
             ['upsert' => true]
         );
 
+        // ✅ CORRECT way to pass WriteConcern
+        $writeConcern = new MongoDB\Driver\WriteConcern(
+            MongoDB\Driver\WriteConcern::MAJORITY,
+            1000
+        );
+
         $result = $manager->executeBulkWrite(
             "$dbName.$collectionName",
             $bulk,
-            new MongoDB\Driver\WriteConcern(
-                MongoDB\Driver\WriteConcern::MAJORITY
-            )
+            ['writeConcern' => $writeConcern]
         );
 
         // HARD validation (no fake success)
@@ -86,6 +90,8 @@ function updateProfile($userId, $data)
         ) {
             throw new Exception("MongoDB write did not persist");
         }
+
+        return true;
 
     } catch (Throwable $e) {
         error_log("MongoDB WRITE error: " . $e->getMessage());
