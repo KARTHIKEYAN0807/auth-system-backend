@@ -8,5 +8,9 @@ $port = getenv("MYSQL_PORT");
 $conn = new mysqli($host, $user, $pass, $db, $port);
 
 if ($conn->connect_error) {
-  die("DB connection failed");
+    http_response_code(500);
+    die("MySQL connection failed");
 }
+
+// IMPORTANT: set charset
+$conn->set_charset("utf8mb4");

@@ -26,15 +26,19 @@ function getProfileByUserId($userId)
 {
     global $manager, $dbName, $collectionName;
 
-    $query = new MongoDB\Driver\Query(
-        ['user_id' => (int)$userId],
-        ['limit' => 1]
-    );
+    try {
+        $query = new MongoDB\Driver\Query(
+            ['user_id' => (int)$userId],
+            ['limit' => 1]
+        );
 
-    $cursor = $manager->executeQuery("$dbName.$collectionName", $query);
+        $cursor = $manager->executeQuery("$dbName.$collectionName", $query);
 
-    foreach ($cursor as $doc) {
-        return $doc;
+        foreach ($cursor as $doc) {
+            return $doc;
+        }
+    } catch (Exception $e) {
+        return null;
     }
 
     return null;
@@ -47,15 +51,22 @@ function updateProfile($userId, $data)
 {
     global $manager, $dbName, $collectionName;
 
-    // Always enforce user_id
     $data['user_id'] = (int)$userId;
 
-    $bulk = new MongoDB\Driver\BulkWrite();
-    $bulk->update(
-        ['user_id' => (int)$userId],
-        ['$set' => $data],
-        ['upsert' => true]
-    );
+    try {
+        $bulk = new MongoDB\Driver\BulkWrite();
+        $bulk->update(
+            ['user_id' => (int)$userId],
+            ['$set' => $data],
+            ['upsert' => true]
+        );
 
-    $manager->executeBulkWrite("$dbName.$collectionName", $bulk);
+        $manager->executeBulkWrite(
+            "$dbName.$collectionName",
+            $bulk,
+            new MongoDB\Driver\WriteConcern(MongoDB\Driver\WriteConcern::MAJORITY)
+        );
+    } catch (Exception $e) {
+        // silently fail or log
+    }
 }

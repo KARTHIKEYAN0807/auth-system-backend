@@ -1,5 +1,6 @@
 <?php
-// ===== CORS (MUST BE FIRST) =====
+
+// ===== CORS =====
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Session-Id");
@@ -8,16 +9,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
-// ===============================
-
 header('Content-Type: application/json');
+// =================
 
 require_once __DIR__ . '/config/redis.php';
 require_once __DIR__ . '/config/mongodb.php';
-require_once __DIR__ . '/config/mysql.php'; // gives $conn (mysqli)
+require_once __DIR__ . '/config/mysql.php';
 
 /* ======================
-   SESSION CHECK
+   SESSION CHECK (REDIS)
 ====================== */
 $headers = getallheaders();
 $sessionId = $headers['Session-Id'] ?? '';
@@ -39,13 +39,10 @@ if (!$userId) {
 ====================== */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    // Try MongoDB first
     $profile = getProfileByUserId($userId);
 
-    // 🔥 If profile not exists → create with ONLY EMAIL
+    // Create profile if not exists
     if (!$profile) {
-
-        // Fetch email from MySQL
         $stmt = $conn->prepare("SELECT email FROM users WHERE id = ?");
         $stmt->bind_param("i", $userId);
         $stmt->execute();
@@ -57,10 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
 
-        // Create profile in MongoDB
         updateProfile($userId, [
-            'name'  => '',                 // ❌ DO NOT AUTO FILL
-            'email' => $user['email'],     // ✅ ONLY EMAIL
+            'name'  => '',
+            'email' => $user['email'],
             'phone' => '',
             'age'   => 0,
             'city'  => '',
@@ -76,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'name'  => $profile->name ?? '',
             'email' => $profile->email ?? '',
             'phone' => $profile->phone ?? '',
-            'age'   => $profile->age ?? '',
+            'age'   => $profile->age ?? 0,
             'city'  => $profile->city ?? '',
             'bio'   => $profile->bio ?? ''
         ]
@@ -89,7 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 ====================== */
 $data = json_decode(file_get_contents("php://input"), true);
 
-// ❌ EMAIL IS NOT UPDATED FROM PROFILE PAGE
 updateProfile($userId, [
     'name'  => $data['name'] ?? '',
     'phone' => $data['phone'] ?? '',
